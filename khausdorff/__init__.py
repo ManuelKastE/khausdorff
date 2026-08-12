@@ -14,6 +14,12 @@ from khausdorff.naive import (
     nearest_distances,
     partial_hausdorff,
 )
+from khausdorff.percentile import (
+    hausdorff_percentile,
+    hausdorff_percentile_bucket,
+    k_for_percentile,
+    partial_hausdorff_percentile,
+)
 
 __all__ = [
     "KHausdorff",
@@ -25,6 +31,10 @@ __all__ = [
     "all_partial_hausdorff",
     "partial_hausdorff",
     "nearest_distances",
+    "hausdorff_percentile",
+    "hausdorff_percentile_bucket",
+    "partial_hausdorff_percentile",
+    "k_for_percentile",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

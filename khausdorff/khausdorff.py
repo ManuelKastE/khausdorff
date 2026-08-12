@@ -236,7 +236,7 @@ class KHausdorff(DualTreeSearch):
     def __call__(self):
         """
         Ejecuta el recorrido hasta el final y devuelve la lista de distancias
-        parciales aproximadas (delta_0, ..., delta_{n-1}).
+        parciales aproximadas (delta_0, ..., delta_n), de largo n + 1.
 
         No se reutiliza `DualTreeSearch.__call__` porque la condición de
         terminación debe evaluarse al *inicio* de cada iteración, y porque hay
@@ -253,17 +253,27 @@ class KHausdorff(DualTreeSearch):
             self.iteration(ball)
 
         self.cleanup_all()
+        # El caso k = n: A^(n) = {conjunto vacío}, y d_h(vacío, B) = 0 por
+        # convención.  El artículo incluye este valor -- su salida es una lista
+        # de n + 1 elementos, con k recorriendo {0, ..., n}.
+        self.out.append(0.0)
         return self.out
 
 
 def all_k_hausdorff(G_A, G_B, epsilon=0, monotone=True):
     """
-    Devuelve (delta_0, ..., delta_{n-1}) con delta_i <= d_h^(i)(A,B) <= (1+eps) delta_i.
+    Devuelve (delta_0, ..., delta_n) con delta_i <= d_h^(i)(A,B) <= (1+eps) delta_i.
+
+    La lista tiene n + 1 elementos, uno por cada k en {0, ..., n} con n = |A|.
+    El último, delta_n, es 0: descartar los n puntos de A no deja nada que medir.
 
     `G_A` y `G_B` son árboles greedy, como los que produce
     `greedypermutation.balltree.greedy_tree`.  Con `epsilon=0` el resultado es
     exacto.  Nótese que, igual que la distancia de Hausdorff subyacente, esto es
     dirigido: intercambiar los argumentos da una respuesta distinta.
+
+    Para indexar por percentil en vez de por cantidad de descartes, ver
+    `khausdorff.percentile`.
     """
     return KHausdorff(G_A, G_B, epsilon, monotone)()
 

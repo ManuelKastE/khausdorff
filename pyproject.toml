@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "khausdorff"
-version = "0.1.0"
+version = "0.2.0"
 description = "Approximate k-th partial directed Hausdorff distance (Chubet, Parikh, Sheehy & Sheth, 2023, Section 5)"
 readme = "README.md"
 license = { file = "LICENSE" }

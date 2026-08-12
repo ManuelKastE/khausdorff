@@ -15,7 +15,7 @@ class ApproximationChecks:
 
     def assert_valid(self, got, exact, epsilon):
         n = len(exact)
-        self.assertEqual(len(got), n, "one distance per point of A")
+        self.assertEqual(len(got), n, "un valor por punto de A, mas el caso k = n")
         for i in range(n - 1):
             self.assertGreaterEqual(
                 got[i] + TOL, got[i + 1], f"output is not non-increasing at {i}"
@@ -36,8 +36,8 @@ class TestExact(unittest.TestCase, ApproximationChecks):
 
     def test_line_examples(self):
         for a_values, b_values, expected in [
-            ([1, 2, 3, 6, 7, 8, 12], [1, 2, 3, 6, 7, 9], [3, 1, 0, 0, 0, 0, 0]),
-            ([1, 2, 3, 6, 7, 8], [1, 2, 3, 6, 7, 9], [1, 0, 0, 0, 0, 0]),
+            ([1, 2, 3, 6, 7, 8, 12], [1, 2, 3, 6, 7, 9], [3, 1, 0, 0, 0, 0, 0, 0]),
+            ([1, 2, 3, 6, 7, 8], [1, 2, 3, 6, 7, 9], [1, 0, 0, 0, 0, 0, 0]),
         ]:
             A, B = line(a_values), line(b_values)
             G_A, G_B = trees(A, B)
@@ -129,19 +129,19 @@ class TestEdgeCases(unittest.TestCase, ApproximationChecks):
             if epsilon:
                 variants.append(all_k_hausdorff_bucket(*trees(A, B), epsilon))
             for got in variants:
-                self.assertEqual(len(got), 1)
+                self.assertEqual(len(got), 2)  # delta_0 y el delta_n = 0
                 self.assertLessEqual(got[0], 2 + TOL)
                 self.assertLessEqual(2, (1 + epsilon) * got[0] + TOL)
 
     def test_single_point_in_b(self):
         A, B = line([0, 4, 10]), line([0])
-        self.assertEqual(all_k_hausdorff(*trees(A, B), 0), [10, 4, 0])
+        self.assertEqual(all_k_hausdorff(*trees(A, B), 0), [10, 4, 0, 0])
 
     def test_identical_sets(self):
         A = line([1, 4, 9, 16])
         for epsilon in (0,) + EPSILONS:
             got = all_k_hausdorff(*trees(A, A), epsilon)
-            self.assertEqual(got, [0, 0, 0, 0])
+            self.assertEqual(got, [0, 0, 0, 0, 0])
 
     def test_near_duplicate_points(self):
         # Una distancia mínima entre pares muy pequeña dispara la dispersión
@@ -163,8 +163,8 @@ class TestEdgeCases(unittest.TestCase, ApproximationChecks):
 
     def test_directed_not_symmetric(self):
         A, B = line([0, 10]), line([0])
-        self.assertEqual(all_k_hausdorff(*trees(A, B), 0), [10, 0])
-        self.assertEqual(all_k_hausdorff(*trees(B, A), 0), [0])
+        self.assertEqual(all_k_hausdorff(*trees(A, B), 0), [10, 0, 0])
+        self.assertEqual(all_k_hausdorff(*trees(B, A), 0), [0, 0])
 
     def test_monotone_flag_off_still_bounds_from_below(self):
         rng = seeded(10)
@@ -182,10 +182,16 @@ class TestApi(unittest.TestCase):
         self.assertEqual(k_hausdorff(*trees(A, B), 1, epsilon=0), 1)
         self.assertEqual(k_hausdorff_bucket(*trees(A, B), 6, epsilon=0.5), 0)
 
+    def test_k_equal_to_n_is_the_trailing_zero(self):
+        # Con n = 2 la lista es (delta_0, delta_1, delta_2) y k = 2 es valido:
+        # descartar los dos puntos de A no deja nada que medir.
+        A, B = line([1, 2]), line([1])
+        self.assertEqual(k_hausdorff(*trees(A, B), 2), 0)
+
     def test_k_out_of_range(self):
         A, B = line([1, 2]), line([1])
         with self.assertRaises(IndexError):
-            k_hausdorff(*trees(A, B), 2)
+            k_hausdorff(*trees(A, B), 3)
 
     def test_negative_epsilon_is_rejected(self):
         A, B = line([1, 2]), line([1])

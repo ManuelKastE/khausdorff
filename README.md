@@ -28,7 +28,9 @@ es la distancia de Hausdorff dirigida ordinaria. Es la forma estándar de hacer 
 Hausdorff robusta al ruido, ya que de otro modo un único punto extraviado de `A` domina la
 respuesta.
 
-La salida es la secuencia completa `(delta_0, ..., delta_{n-1})`, con la garantía
+La salida es la secuencia completa `(delta_0, ..., delta_n)` — `n + 1` valores, uno por cada `k`
+en `{0, …, n}`, tal como en el artículo. El último es `0`: descartar los `n` puntos de `A` no deja
+nada que medir. La garantía es
 
 ```
 delta_i  <=  d_h^(k=i)(A, B)  <=  (1 + epsilon) * delta_i
@@ -88,13 +90,47 @@ Tres advertencias que conviene dejar claras de entrada:
 
 | Función | Devuelve |
 |---|---|
-| `all_k_hausdorff(G_A, G_B, epsilon=0, monotone=True)` | la lista completa `(delta_0, …, delta_{n-1})`, variante de heap exacto |
+| `all_k_hausdorff(G_A, G_B, epsilon=0, monotone=True)` | la lista completa `(delta_0, …, delta_n)`, variante de heap exacto |
 | `k_hausdorff(G_A, G_B, k, epsilon=0)` | un único `delta_k` |
 | `all_k_hausdorff_bucket(G_A, G_B, epsilon)` | lo mismo, variante de cola de buckets β (requiere `epsilon > 0`) |
 | `all_partial_hausdorff(A, B)` | la respuesta exacta por fuerza bruta, `O(|A|·|B|)`; recibe **puntos**, no árboles |
+| `hausdorff_percentile(G_A, G_B, q, epsilon=0)` | el percentil `q` en vez del `k`-ésimo (ver abajo) |
+| `hausdorff_percentile_bucket(G_A, G_B, q, epsilon)` | ídem, variante de buckets |
+| `partial_hausdorff_percentile(A, B, q)` | ídem, exacto; recibe **puntos** |
+| `k_for_percentile(n, q)` | la traducción de índice, `k = n − ceil(q·n/100)` |
 
 `epsilon = 0` da respuestas exactas a través de `all_k_hausdorff`, al costo de hacer el recorrido
 completo sin ninguna terminación temprana.
+
+### Percentiles
+
+El artículo indexa por **conteo**: `d_h^(k)` descarta `k` valores atípicos. En la práctica suele
+ser más natural pedir un **porcentaje**. Son la misma cantidad con distinto índice, porque, como
+dice la Sección 5, `d_h^(k)(A, B)` es el `(k+1)`-ésimo valor más grande de `d(a, B)`: un
+estadístico de orden.
+
+```python
+from khausdorff import hausdorff_percentile, partial_hausdorff_percentile
+
+# descartando el 5% de los puntos de A más lejanos de B
+hausdorff_percentile(G_A, G_B, 95, epsilon=0.1)
+
+# q = 100 es la distancia de Hausdorff dirigida ordinaria
+hausdorff_percentile(G_A, G_B, 100)
+```
+
+Con `|A| = 100`, el percentil 95 y `delta_5` son literalmente el mismo número:
+
+```python
+partial_hausdorff_percentile(A, B, 95) == all_partial_hausdorff(A, B)[5]   # True
+```
+
+Se usa la convención **nearest-rank**: el percentil `q` es el valor en la posición
+`ceil(q·n/100)` del orden ascendente, de donde `k = n − ceil(q·n/100)`. Eso hace que el resultado
+sea siempre uno de los `delta_k` que el algoritmo ya calculó, y por lo tanto **hereda intacta la
+garantía `(1 + ε)`** del artículo. Interpolar entre dos `delta_k`, como hace `numpy.percentile`
+por omisión, devolvería un valor que el algoritmo nunca computó y la demostración de la cota
+dejaría de aplicarse tal cual.
 
 ### Dos variantes
 

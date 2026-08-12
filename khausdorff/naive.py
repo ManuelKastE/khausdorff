@@ -24,7 +24,7 @@ def nearest_distances(A: list, B: list) -> list:
 
 def all_partial_hausdorff(A: list, B: list) -> list:
     """
-    Devuelve la secuencia exacta (delta_0, ..., delta_{n-1}) de distancias de
+    Devuelve la secuencia exacta (delta_0, ..., delta_n) de distancias de
     Hausdorff dirigidas parciales, donde delta_k = d_h^(k)(A, B).
 
     La k-ésima distancia de Hausdorff dirigida parcial es
@@ -38,8 +38,12 @@ def all_partial_hausdorff(A: list, B: list) -> list:
 
     En particular delta_0 es la distancia de Hausdorff dirigida ordinaria
     d_h(A, B), y la secuencia es no creciente.
+
+    La lista tiene n + 1 elementos, con k recorriendo {0, ..., n} igual que en
+    el artículo.  El último es 0: A^(n) = {conjunto vacío} y d_h(vacío, B) = 0
+    por convención.
     """
-    return sorted(nearest_distances(A, B), reverse=True)
+    return sorted(nearest_distances(A, B), reverse=True) + [0.0]
 
 
 def partial_hausdorff(A: list, B: list, k: int) -> float:
