@@ -14,6 +14,7 @@ from khausdorff.naive import (
     nearest_distances,
     partial_hausdorff,
 )
+from khausdorff.io import deduplicate, duplicates, load_points
 from khausdorff.percentile import (
     hausdorff_percentile,
     hausdorff_percentile_bucket,
@@ -35,6 +36,9 @@ __all__ = [
     "hausdorff_percentile_bucket",
     "partial_hausdorff_percentile",
     "k_for_percentile",
+    "load_points",
+    "duplicates",
+    "deduplicate",
 ]
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"

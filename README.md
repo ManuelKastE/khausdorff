@@ -191,6 +191,68 @@ entre nodos cuyas cotas coinciden salvo por un factor `β` es justamente lo que 
 Consecuencia práctica: **no compares dos corridas de la variante de buckets con igualdad exacta**;
 compara contra las cotas. `KHausdorff` sí es reproducible.
 
+## Usar tus propios datos
+
+Instalar el paquete deja disponible el comando `khausdorff`:
+
+```bash
+khausdorff A.csv B.csv --percentile 95 --epsilon 0.5
+```
+
+Calcula el valor pedido, lo contrasta contra la respuesta exacta por fuerza bruta, y reporta la
+razón entre ambos y los tiempos de construcción y de consulta por separado.
+
+### El formato
+
+Un punto por línea, coordenadas separadas por **comas o espacios** —se autodetecta—. Se ignoran
+las líneas vacías, las que empiezan con `#`, un encabezado como `x,y`, y todo lo que venga después
+de un `;`. Cualquier dimensión, siempre que todas las filas tengan la misma.
+
+```
+x,y
+0.237965,0.544229
+0.369955,0.603920
+# esta línea se ignora
+0.625720,0.065529
+```
+
+Si aún no tienes datos, hay un generador para practicar:
+
+```bash
+python examples/generar_datos.py --n 500 --m 300 --atipicos 10 --salida datos/
+khausdorff datos/A.csv datos/B.csv --percentile 100    # los atípicos dominan
+khausdorff datos/A.csv datos/B.csv --percentile 95     # los descarta
+```
+
+### Opciones
+
+| Bandera | Para qué |
+|---|---|
+| `--percentile Q` / `--k K` | qué valor pedir (por omisión, el percentil 100) |
+| `--epsilon E` | aproximación; `0` da la respuesta exacta |
+| `--variant heap\|bucket` | cuál de las dos implementaciones |
+| `--todos` | mostrar la secuencia completa en vez de un solo valor |
+| `--csv ARCHIVO` | volcar la secuencia completa, con precisión total |
+| `--sin-exacto` | omitir la referencia por fuerza bruta, que cuesta `O(\|A\|·\|B\|)` |
+| `--deduplicar` | quitar puntos repetidos en vez de abortar |
+
+Desde Python, el mismo lector está disponible como `khausdorff.load_points`, junto con
+`duplicates` y `deduplicate`.
+
+### Tres trampas con datos reales
+
+Las tres muerden en silencio o con errores que no explican nada, así que conviene tenerlas
+presentes:
+
+1. **Puntos exactamente duplicados rompen `greedy_tree`**, con un
+   `TypeError: 'NoneType' object is not iterable` que no menciona la causa. El comando los detecta
+   antes y dice cuántos hay; `--deduplicar` los quita.
+2. **Filas con distinta cantidad de coordenadas no dan error al calcular.** `Point.dist` proyecta
+   al subespacio común y devuelve un número equivocado sin avisar. Por eso `load_points` valida la
+   dimensión e indica la línea exacta donde se rompe.
+3. **Cada búsqueda consume los árboles** que recibe. El comando los reconstruye solo; si usas la
+   API directamente, construye un par nuevo por consulta.
+
 ## Desviaciones respecto al artículo
 
 Dos puntos en los que una transcripción literal de la Sección 5 no se sostiene, ambos verificados
@@ -249,6 +311,7 @@ pip install -e ".[dev]"
 
 python -m unittest discover -s tests -t .     # o bien: pytest tests/
 python examples/demo.py --n 200 --epsilon 0.3
+python examples/generar_datos.py --salida datos/ && khausdorff datos/A.csv datos/B.csv --percentile 95
 python benchmarks/bench_khausdorff.py --sizes 200,500,1000,2000 --variant both
 ```
 

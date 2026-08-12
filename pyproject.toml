@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "khausdorff"
-version = "0.3.0"
+version = "0.4.0"
 description = "Approximate k-th partial directed Hausdorff distance (Chubet, Parikh, Sheehy & Sheth, 2023, Section 5)"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -35,6 +35,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest"]
+
+[project.scripts]
+khausdorff = "khausdorff.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/ManuelKastE/khausdorff"
