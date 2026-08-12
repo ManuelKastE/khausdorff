@@ -1,17 +1,17 @@
 """
-Timing harness for k-HAUSDORFF.
+Banco de pruebas de tiempos para k-HAUSDORFF.
 
-Reports, per input size, the preprocessing cost (building the two greedy trees)
-and the cost of the traversal itself, optionally next to the O(|A|*|B|) naive
-reference.
+Reporta, por tamaño de entrada, el costo del preprocesamiento (construir los dos
+árboles greedy) y el costo del recorrido en sí, opcionalmente junto a la
+referencia ingenua O(|A|*|B|).
 
-    # compare against the exact reference on sizes it can still handle
+    # comparar contra la referencia exacta en tamaños que aún tolera
     python benchmarks/bench_khausdorff.py --sizes 100,500,1000 --compare naive
 
-    # just time k-Hausdorff, where the reference would be hopeless
+    # solo cronometrar k-Hausdorff, donde la referencia sería inviable
     python benchmarks/bench_khausdorff.py --sizes 5000,20000 --compare none
 
-    # sweep epsilon, both variants, save the table
+    # barrer epsilon, ambas variantes, guardar la tabla
     python benchmarks/bench_khausdorff.py --epsilon 0.1,0.5,1.0 --variant both --csv out.csv
 """
 
@@ -29,7 +29,8 @@ from khausdorff.bucketkhausdorff import all_k_hausdorff_bucket
 from khausdorff.khausdorff import all_k_hausdorff
 from khausdorff.naive import all_partial_hausdorff
 
-# Above this size the O(n*m) reference is too slow to run by default.
+# Por encima de este tamaño la referencia O(n*m) es demasiado lenta para
+# ejecutarla por omisión.
 NAIVE_AUTO_LIMIT = 2000
 
 
@@ -51,7 +52,7 @@ def number_list(text, cast):
 
 
 def run_case(A, B, epsilon, variant, compare, repeat):
-    """Time one (size, epsilon, variant) cell and return a result row."""
+    """Cronometra una celda (tamaño, epsilon, variante) y devuelve una fila."""
     build_times, run_times, results = [], [], None
     for _ in range(repeat):
         (trees, build) = timed(
@@ -114,28 +115,28 @@ def format_row(row):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--sizes", default="100,500,1000,2000", help="values of |A|")
+    parser.add_argument("--sizes", default="100,500,1000,2000", help="valores de |A|")
     parser.add_argument(
         "--ratio",
         type=float,
         default=0.6,
-        help="|B| as a fraction of |A|",
+        help="|B| como fracción de |A|",
     )
-    parser.add_argument("--epsilon", default="0.1", help="one value or a comma list")
+    parser.add_argument("--epsilon", default="0.1", help="un valor o una lista separada por comas")
     parser.add_argument("--variant", choices=("heap", "bucket", "both"), default="heap")
     parser.add_argument(
         "--compare",
         choices=("naive", "none", "auto"),
         default="auto",
-        help="'naive' also times the exact O(n*m) reference and reports the "
-        "observed approximation ratio; 'none' times k-Hausdorff only; 'auto' "
-        f"uses naive up to n={NAIVE_AUTO_LIMIT} and none above",
+        help="'naive' cronometra además la referencia exacta O(n*m) y reporta "
+        "la razón de aproximación observada; 'none' cronometra solo k-Hausdorff; "
+        f"'auto' usa naive hasta n={NAIVE_AUTO_LIMIT} y none por encima",
     )
     parser.add_argument("--dim", type=int, default=2)
     parser.add_argument("--offset", type=float, default=0.4)
-    parser.add_argument("--repeat", type=int, default=1, help="best of N runs")
+    parser.add_argument("--repeat", type=int, default=1, help="el mejor de N intentos")
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--csv", help="also write the table to this file")
+    parser.add_argument("--csv", help="escribir además la tabla en este archivo")
     args = parser.parse_args()
 
     sizes = number_list(args.sizes, int)

@@ -1,18 +1,20 @@
 """
-Exact, brute-force reference for the partial directed Hausdorff distance.
+Referencia exacta, por fuerza bruta, de la distancia de Hausdorff dirigida
+parcial.
 
-This is the ground truth the approximation algorithms are tested against.
-It costs O(|A| * |B|) distance computations, so it is only usable on small
-inputs, but it needs no preprocessing and no approximation parameter.
+Esta es la verdad de referencia contra la que se contrastan los algoritmos de
+aproximación.  Cuesta O(|A| * |B|) cálculos de distancia, así que solo es
+utilizable en entradas pequeñas, pero no necesita preprocesamiento ni parámetro
+de aproximación.
 """
 
 
 def nearest_distances(A: list, B: list) -> list:
     """
-    Return the list of d(a, B) = min_{b in B} d(a, b) for every a in A.
+    Devuelve la lista de d(a, B) = min_{b en B} d(a, b) para cada a en A.
 
-    `A` and `B` are iterables of points (anything with a `dist` method, such as
-    `greedypermutation.point.Point` or `metricspaces.R1`).
+    `A` y `B` son iterables de puntos (cualquier cosa con un método `dist`, como
+    `greedypermutation.point.Point` o `metricspaces.R1`).
     """
     B = list(B)
     if not B:
@@ -22,25 +24,26 @@ def nearest_distances(A: list, B: list) -> list:
 
 def all_partial_hausdorff(A: list, B: list) -> list:
     """
-    Return the exact sequence (delta_0, ..., delta_{n-1}) of partial directed
-    Hausdorff distances, where delta_k = d_h^(k)(A, B).
+    Devuelve la secuencia exacta (delta_0, ..., delta_{n-1}) de distancias de
+    Hausdorff dirigidas parciales, donde delta_k = d_h^(k)(A, B).
 
-    The k-th partial directed Hausdorff distance is
+    La k-ésima distancia de Hausdorff dirigida parcial es
 
-        d_h^(k)(A, B) = min_{S in A^(k)} d_h(S, B),
+        d_h^(k)(A, B) = min_{S en A^(k)} d_h(S, B),
 
-    where A^(k) is the family of subsets of A with k points removed.  The
-    minimum is attained by removing the k points of A that are farthest from B,
-    so d_h^(k)(A, B) is simply the (k+1)-th largest value of d(a, B).
+    donde A^(k) es la familia de subconjuntos de A a los que se les quitaron k
+    puntos.  El mínimo se alcanza quitando los k puntos de A más lejanos de B,
+    de modo que d_h^(k)(A, B) es simplemente el (k+1)-ésimo valor más grande de
+    d(a, B).
 
-    In particular delta_0 is the ordinary directed Hausdorff distance d_h(A, B),
-    and the sequence is non-increasing.
+    En particular delta_0 es la distancia de Hausdorff dirigida ordinaria
+    d_h(A, B), y la secuencia es no creciente.
     """
     return sorted(nearest_distances(A, B), reverse=True)
 
 
 def partial_hausdorff(A: list, B: list, k: int) -> float:
-    """Return the exact k-th partial directed Hausdorff distance d_h^(k)(A, B)."""
+    """Devuelve la k-ésima distancia de Hausdorff dirigida parcial exacta d_h^(k)(A, B)."""
     distances = all_partial_hausdorff(A, B)
     if not 0 <= k < len(distances):
         raise IndexError(f"k must be in [0, {len(distances)}), got {k}.")

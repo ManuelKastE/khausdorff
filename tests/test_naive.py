@@ -16,7 +16,7 @@ class TestNaive(unittest.TestCase):
         self.assertEqual(all_partial_hausdorff(A, B), [3, 1, 0, 0, 0, 0, 0])
 
     def test_delta_0_is_the_directed_hausdorff_distance(self):
-        # The same two assertions the upstream `hausdorff` module checks.
+        # Las mismas dos comprobaciones que hace el módulo `hausdorff` original.
         self.assertEqual(
             partial_hausdorff(line([1, 2, 3, 6, 7, 8, 12]), line([1, 2, 3, 6, 7, 9]), 0),
             3,

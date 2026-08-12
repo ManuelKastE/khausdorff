@@ -1,28 +1,28 @@
 """
-k-HAUSDORFF: approximate the k-th partial directed Hausdorff distance for every
-k at once, in a single dual-tree traversal.
+k-HAUSDORFF: aproxima la k-ésima distancia de Hausdorff dirigida parcial para
+todo k a la vez, en un único recorrido de árbol dual.
 
-This implements Section 5 of
+Implementa la Sección 5 de
 
-    O. A. Chubet, P. M. Parikh, D. R. Sheehy and S. S. Sheth,
+    O. A. Chubet, P. M. Parikh, D. R. Sheehy y S. S. Sheth,
     "Approximating the Directed Hausdorff Distance",
     Computing in Geometry and Topology, 4(2):6:1-6:16, 2023.
 
-The HAUSDORFF algorithm of Section 4 stops as soon as it has identified the
-point of A that is (approximately) farthest from B.  The observation behind
-k-HAUSDORFF is that if, instead of stopping, we discard that point and keep
-going, the next time the condition holds we have found the second farthest
-point, and so on.  Running the traversal to completion therefore yields the
-whole sequence
+El algoritmo HAUSDORFF de la Sección 4 se detiene apenas identifica el punto de
+A que está (aproximadamente) más lejos de B.  La observación detrás de
+k-HAUSDORFF es que si, en lugar de detenerse, se descarta ese punto y se sigue,
+la próxima vez que la condición se cumpla habremos encontrado el segundo punto
+más lejano, y así sucesivamente.  Llevar el recorrido hasta el final produce por
+lo tanto la secuencia completa
 
-    (delta_0, ..., delta_{n-1})    with    delta_i <= d_h^(i)(A,B) <= (1+eps) delta_i,
+    (delta_0, ..., delta_{n-1})    con    delta_i <= d_h^(i)(A,B) <= (1+eps) delta_i,
 
-where delta_0 is the ordinary directed Hausdorff distance.
+donde delta_0 es la distancia de Hausdorff dirigida ordinaria.
 
-This module holds the reference variant, which uses an exact max-heap as the
-lower bound heap.  `khausdorff.bucketkhausdorff` holds the variant of Section
-5.2 that replaces it with a beta-bucket queue to reach the running time claimed
-in the paper.
+Este módulo contiene la variante de referencia, que usa un max-heap exacto como
+heap de cotas inferiores.  `khausdorff.bucketkhausdorff` contiene la variante de
+la Sección 5.2, que lo reemplaza por una cola de buckets beta para alcanzar el
+tiempo de ejecución que afirma el artículo.
 """
 
 from greedypermutation.dualtrees.dualtreesearch import DualTreeSearch
@@ -32,19 +32,20 @@ from khausdorff.lowerboundheap import LowerBoundHeap
 
 class KHausdorff(DualTreeSearch):
     """
-    Approximate every partial directed Hausdorff distance d_h^(k)(A, B).
+    Aproxima todas las distancias de Hausdorff dirigidas parciales d_h^(k)(A, B).
 
-    The traversal machinery (viability graph `self.G`, radius heap `self.H`)
-    comes from `DualTreeSearch`.  On top of it this class maintains the *lower
-    bound heap* `self.L`: a max-heap holding every node of G_A currently in the
-    viability graph, keyed by its local lower bound l(x).
+    La maquinaria del recorrido (grafo de viabilidad `self.G`, heap de radios
+    `self.H`) viene de `DualTreeSearch`.  Sobre ella, esta clase mantiene el
+    *heap de cotas inferiores* `self.L`: un max-heap que contiene todo nodo de
+    G_A actualmente en el grafo de viabilidad, indexado por su cota inferior
+    local l(x).
     """
 
     def __init__(self, G_A, G_B, epsilon=0, monotone=True):
         """
-        `G_A` and `G_B` are greedy trees (`greedypermutation.balltree.Ball`),
-        `epsilon >= 0` is the approximation parameter (0 gives exact answers)
-        and `monotone` clamps the output to be non-increasing.
+        `G_A` y `G_B` son árboles greedy (`greedypermutation.balltree.Ball`),
+        `epsilon >= 0` es el parámetro de aproximación (0 da respuestas exactas)
+        y `monotone` fuerza a que la salida sea no creciente.
         """
         if epsilon < 0:
             raise ValueError(f"epsilon must be non-negative, got {epsilon}.")
@@ -52,32 +53,33 @@ class KHausdorff(DualTreeSearch):
         self.epsilon = epsilon
         self.monotone = monotone
         self.out = []
-        # Local lower bounds l(x), for every node x of G_A in the graph.
+        # Cotas inferiores locales l(x), para cada nodo x de G_A en el grafo.
         self.lb = {}
         self.L = self._make_lb_heap()
-        # Nodes that have been finished and removed from the viability graph.
+        # Nodos ya terminados y removidos del grafo de viabilidad.
         self.done = set()
         self._record(G_A)
 
-    # -- lower bound heap ---------------------------------------------------
+    # -- heap de cotas inferiores -------------------------------------------
 
     def _make_lb_heap(self):
         """
-        Build the lower bound heap.  Its key reads `self.lb`, which is mutable,
-        so refreshing a priority is just `changepriority(node)` with no value.
+        Construye el heap de cotas inferiores.  Su clave lee `self.lb`, que es
+        mutable, así que refrescar una prioridad es simplemente
+        `changepriority(node)` sin pasar valor.
 
-        `LowerBoundHeap` rather than the upstream `MaxHeap` because this
-        algorithm removes nodes from the middle of the heap, which upstream
-        gets wrong; see that module.
+        Se usa `LowerBoundHeap` y no el `MaxHeap` de la dependencia porque este
+        algoritmo remueve nodos desde el medio del heap, algo que la
+        implementación original hace mal; ver ese módulo.
         """
         return LowerBoundHeap(key=lambda x: self.lb[x])
 
     def _record(self, node):
         """
-        Compute l(node) and (re)position `node` in the lower bound heap.
+        Calcula l(node) y (re)ubica `node` en el heap de cotas inferiores.
 
-        Returns True if `node` is still in the graph afterwards.  It always is
-        here; the bucket variant can finish a node on the spot instead.
+        Devuelve True si `node` sigue en el grafo después de eso.  Aquí siempre
+        lo está; la variante de buckets puede terminar un nodo en el acto.
         """
         new_lb = self.G.lower_bound(node)
         if node in self.lb:
@@ -89,59 +91,60 @@ class KHausdorff(DualTreeSearch):
         return True
 
     def _reprioritize(self, node):
-        """Refresh the heap position of `node` after `self.lb[node]` changed."""
+        """Refresca la posición de `node` tras cambiar `self.lb[node]`."""
         self.L.changepriority(node)
 
     def _pop_max_lb(self):
-        """Return the node of G_A with the largest local lower bound."""
+        """Devuelve el nodo de G_A con la mayor cota inferior local."""
         return self.L.findmax()
 
-    # -- viability graph ----------------------------------------------------
+    # -- grafo de viabilidad -------------------------------------------------
 
     def _prune(self, a):
         """
-        Drop the edges out of `a` that cannot hold a nearest neighbour of any
-        point in `a`.
+        Elimina las aristas salientes de `a` que no pueden contener al vecino
+        más cercano de ningún punto de `a`.
 
-        This is the pruning rule of `NNBallGraph.prune` in the upstream
-        `hausdorff` module, which `ViabilityGraph` does not provide.  The
-        neighbour realising `mindist` always survives, so `self.G.A[a]` never
-        becomes empty and `lower_bound(a)` is always well defined.
+        Esta es la regla de poda de `NNBallGraph.prune` del módulo `hausdorff`
+        de la dependencia, que `ViabilityGraph` no ofrece.  El vecino que
+        realiza `mindist` siempre sobrevive, de modo que `self.G.A[a]` nunca
+        queda vacío y `lower_bound(a)` siempre está bien definido.
         """
         self.G.update_mindist(a)
         threshold = self.G.mindist[a] + 2 * a.radius
         for b in [b for b in self.G.A[a] if a.dist(b.center) - b.radius > threshold]:
             self.G.remove_edge(a, b)
 
-    # -- finishing ----------------------------------------------------------
+    # -- terminación ---------------------------------------------------------
 
     def _emit(self, value, count):
-        """Append `value` to the output once per point, keeping it monotone."""
+        """Agrega `value` a la salida una vez por punto, manteniendo monotonía."""
         if self.monotone and self.out:
-            # Clamping downwards is always safe: the guarantee is
-            # delta_i <= d_h^(i), and the sequence d_h^(i) is non-increasing.
+            # Recortar hacia abajo siempre es seguro: la garantía es
+            # delta_i <= d_h^(i), y la secuencia d_h^(i) es no creciente.
             value = min(value, self.out[-1])
         self.out.extend([value] * count)
 
     def _finish(self, x, value=None):
         """
-        Finish node `x`: emit its lower bound once per point of pts(x), then cut
-        it out of the lower bound heap and the viability graph.
+        Termina el nodo `x`: emite su cota inferior una vez por cada punto de
+        pts(x), y luego lo saca del heap de cotas inferiores y del grafo de
+        viabilidad.
         """
         self.L.remove(x)
         self._retire(x, value)
 
     def _retire(self, x, value=None):
         """
-        Finish `x` when it has *already* been taken out of the lower bound heap.
+        Termina `x` cuando *ya* fue sacado del heap de cotas inferiores.
 
-        The value reported for every point of pts(x) is l(x) - rad(x), not l(x).
-        The paper reports l(x), but l(x) only bounds d(ctr(x), B) from below; a
-        point of pts(x) sitting closer to B than the centre does would then be
-        credited with too large a distance, breaking delta_i <= d_h^(i).
-        Subtracting the radius gives a bound valid for *every* point of the
-        node, since d(p, B) >= d(ctr(x), B) - rad(x) >= l(x) - rad(x).  See
-        `_finish_constant` for how the finishing condition pays for it.
+        El valor reportado para cada punto de pts(x) es l(x) - rad(x), no l(x).
+        El artículo reporta l(x), pero l(x) solo acota inferiormente
+        d(ctr(x), B); un punto de pts(x) que quede más cerca de B que el centro
+        recibiría entonces una distancia demasiado grande, rompiendo
+        delta_i <= d_h^(i).  Restar el radio da una cota válida para *todo*
+        punto del nodo, ya que d(p, B) >= d(ctr(x), B) - rad(x) >= l(x) - rad(x).
+        Ver `_finish_constant` para cómo lo paga la condición de terminación.
         """
         bound = self.lb[x] if value is None else value
         self._emit(max(0.0, bound - x.radius), len(x))
@@ -151,76 +154,77 @@ class KHausdorff(DualTreeSearch):
 
     def _finish_constant(self):
         """
-        The constant c in the finishing condition r <= c * l(x).
+        La constante c de la condición de terminación r <= c * l(x).
 
-        The paper uses c = eps/2, which secures the upper bound
-        d_h^(i) <= (1+eps) delta_i but not the lower bound delta_i <= d_h^(i)
-        (see `_retire`).  Reporting l(x) - rad(x) instead of l(x) fixes the
-        lower bound but costs accuracy, so c has to shrink to keep the upper
-        bound.  Writing L = l(x) for the top of the heap, Lemma 4 of the paper
-        gives d_h^(i) <= L + 2r, and the reported value is
-        delta = L - rad(x) >= (1-c)L, so
+        El artículo usa c = eps/2, que asegura la cota superior
+        d_h^(i) <= (1+eps) delta_i pero no la cota inferior delta_i <= d_h^(i)
+        (ver `_retire`).  Reportar l(x) - rad(x) en vez de l(x) arregla la cota
+        inferior pero cuesta precisión, así que c debe achicarse para conservar
+        la cota superior.  Escribiendo L = l(x) para el tope del heap, el Lema 4
+        del artículo da d_h^(i) <= L + 2r, y el valor reportado es
+        delta = L - rad(x) >= (1-c)L, de modo que
 
             d_h^(i) <= (1 + 2c) L <= (1 + 2c)/(1 - c) * delta.
 
-        Requiring (1 + 2c)/(1 - c) <= 1 + eps gives c <= eps/(3 + eps).
+        Exigir (1 + 2c)/(1 - c) <= 1 + eps da c <= eps/(3 + eps).
         """
         return self.epsilon / (3 + self.epsilon)
 
     def finish_pending(self, r):
         """
-        The finishing condition of Section 5.2.
+        La condición de terminación de la Sección 5.2.
 
-        With `r` the radius of the node about to be processed, finish the top of
-        the lower bound heap while r <= c * l(x).
+        Con `r` el radio del nodo que está por procesarse, termina el tope del
+        heap de cotas inferiores mientras r <= c * l(x).
         """
         c = self._finish_constant()
         while len(self.L):
             x = self._pop_max_lb()
-            # Written this way rather than as r / l(x) so that epsilon == 0 and
-            # l(x) == 0 are both fine.
+            # Escrito así y no como r / l(x) para que epsilon == 0 y l(x) == 0
+            # sean ambos casos válidos.
             if r > c * self.lb[x]:
                 return
             self._finish(x)
 
     def cleanup_all(self):
         """
-        Finish everything that is left, with r = 0.
+        Termina todo lo que quede, con r = 0.
 
-        Draining the lower bound heap in decreasing order of l(x), rather than
-        iterating over `self.G.A` as `DualTreeSearch.cleanup` does, is what
-        keeps the output sequence ordered.
+        Vaciar el heap de cotas inferiores en orden decreciente de l(x), en vez
+        de iterar sobre `self.G.A` como hace `DualTreeSearch.cleanup`, es lo que
+        mantiene ordenada la secuencia de salida.
         """
         while len(self.L):
             self._finish(self._pop_max_lb())
 
-    # -- DualTreeSearch hooks -----------------------------------------------
+    # -- ganchos de DualTreeSearch -------------------------------------------
 
     def setup_children(self, ball):
         """
-        Called when an A-side `ball` is split, after its children have been
-        added as vertices but *before* their edges exist, so no lower bound can
-        be computed here.  All we do is retire the parent.
+        Se llama cuando se divide un `ball` del lado A, después de agregar sus
+        hijos como vértices pero *antes* de que existan sus aristas, así que
+        aquí no se puede calcular ninguna cota inferior.  Lo único que hacemos
+        es retirar al padre.
         """
         self.L.remove(ball)
         del self.lb[ball]
 
     def update(self, node, ball):
-        """Refresh the affected A-side vertex `node` after `ball` was split."""
+        """Refresca el vértice `node` del lado A afectado tras dividir `ball`."""
         if self._record(node):
             self._prune(node)
 
-    # -- main loop ----------------------------------------------------------
+    # -- bucle principal -----------------------------------------------------
 
     def _skip(self, ball):
         """
-        True if `ball` is no longer part of the viability graph and must not be
-        split.
+        True si `ball` ya no forma parte del grafo de viabilidad y no debe
+        dividirse.
 
-        Two cases.  An A-side node that has been finished is gone from `self.G`,
-        and `DualTreeSearch.iteration` would look for it in `self.G.B` and raise
-        a KeyError.  A B-side node whose neighbourhood has emptied out can never
-        regain an edge, so splitting it is pure waste.
+        Hay dos casos.  Un nodo del lado A ya terminado desapareció de `self.G`,
+        y `DualTreeSearch.iteration` lo buscaría en `self.G.B` lanzando un
+        KeyError.  Un nodo del lado B cuya vecindad quedó vacía nunca podrá
+        recuperar una arista, así que dividirlo es puro desperdicio.
         """
         if ball in self.done:
             return True
@@ -231,18 +235,18 @@ class KHausdorff(DualTreeSearch):
 
     def __call__(self):
         """
-        Run the traversal to completion and return the list of approximate
-        partial distances (delta_0, ..., delta_{n-1}).
+        Ejecuta el recorrido hasta el final y devuelve la lista de distancias
+        parciales aproximadas (delta_0, ..., delta_{n-1}).
 
-        `DualTreeSearch.__call__` is not reused because the finishing condition
-        has to be tested at the *start* of every iteration, and because nodes
-        that have already been finished must be skipped.
+        No se reutiliza `DualTreeSearch.__call__` porque la condición de
+        terminación debe evaluarse al *inicio* de cada iteración, y porque hay
+        que saltarse los nodos ya terminados.
         """
         for ball in self.H:
             self.finish_pending(ball.radius)
             if ball.isleaf():
-                # The heap is ordered by decreasing radius, so from here on
-                # every surviving node is a leaf of radius 0.
+                # El heap está ordenado por radio decreciente, así que de aquí
+                # en adelante todo nodo sobreviviente es una hoja de radio 0.
                 break
             if self._skip(ball):
                 continue
@@ -254,18 +258,18 @@ class KHausdorff(DualTreeSearch):
 
 def all_k_hausdorff(G_A, G_B, epsilon=0, monotone=True):
     """
-    Return (delta_0, ..., delta_{n-1}) with delta_i <= d_h^(i)(A,B) <= (1+eps) delta_i.
+    Devuelve (delta_0, ..., delta_{n-1}) con delta_i <= d_h^(i)(A,B) <= (1+eps) delta_i.
 
-    `G_A` and `G_B` are greedy trees, as produced by
-    `greedypermutation.balltree.greedy_tree`.  With `epsilon=0` the result is
-    exact.  Note that, like the underlying Hausdorff distance, this is directed:
-    swapping the arguments gives a different answer.
+    `G_A` y `G_B` son árboles greedy, como los que produce
+    `greedypermutation.balltree.greedy_tree`.  Con `epsilon=0` el resultado es
+    exacto.  Nótese que, igual que la distancia de Hausdorff subyacente, esto es
+    dirigido: intercambiar los argumentos da una respuesta distinta.
     """
     return KHausdorff(G_A, G_B, epsilon, monotone)()
 
 
 def k_hausdorff(G_A, G_B, k, epsilon=0, monotone=True):
-    """Return the approximate k-th partial directed Hausdorff distance."""
+    """Devuelve la k-ésima distancia de Hausdorff dirigida parcial aproximada."""
     distances = all_k_hausdorff(G_A, G_B, epsilon, monotone)
     if not 0 <= k < len(distances):
         raise IndexError(f"k must be in [0, {len(distances)}), got {k}.")

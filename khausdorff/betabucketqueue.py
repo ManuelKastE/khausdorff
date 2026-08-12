@@ -1,21 +1,22 @@
 """
-A beta-bucket queue: the approximate max-priority queue of Section 5.2 of
-Chubet, Parikh, Sheehy and Sheth (2023).
+Una cola de buckets beta: la cola de prioridad máxima aproximada de la Sección
+5.2 de Chubet, Parikh, Sheehy y Sheth (2023).
 
-Items are grouped into geometric buckets: bucket `m` holds every item whose
-priority lies in (beta**m, beta**(m+1)].  There are only O(log_beta Delta)
-non-empty buckets, and all of the operations k-HAUSDORFF needs run in constant
-time except for the descending sweep, which visits each bucket at most once.
+Los elementos se agrupan en buckets geométricos: el bucket `m` contiene todo
+elemento cuya prioridad cae en (beta**m, beta**(m+1)].  Solo hay
+O(log_beta Delta) buckets no vacíos, y todas las operaciones que k-HAUSDORFF
+necesita corren en tiempo constante salvo el barrido descendente, que visita
+cada bucket a lo sumo una vez.
 
-Order inside a bucket is arbitrary, which is exactly what buys the speed: the
-algorithm never needs to distinguish two nodes whose lower bounds agree to
-within a factor of beta.
+El orden dentro de un bucket es arbitrario, y eso es exactamente lo que compra
+la velocidad: el algoritmo nunca necesita distinguir dos nodos cuyas cotas
+inferiores coinciden salvo por un factor beta.
 
-This is a fresh implementation rather than a reuse of
-`greedypermutation.fvm.bucketqueue.BucketQueue`, which cannot be used here:
-`insert` on an empty queue raises `ValueError: max() arg is an empty sequence`,
-and its bucket index takes `log2` of the priority, which fails outright on the
-non-positive priorities that local lower bounds routinely take.
+Esta es una implementación nueva y no una reutilización de
+`greedypermutation.fvm.bucketqueue.BucketQueue`, que no puede usarse aquí:
+`insert` sobre una cola vacía lanza `ValueError: max() arg is an empty sequence`,
+y su índice de bucket toma `log2` de la prioridad, lo que falla de plano con las
+prioridades no positivas que las cotas inferiores locales toman rutinariamente.
 """
 
 from math import floor, inf, log
@@ -23,11 +24,13 @@ from math import floor, inf, log
 
 class BetaBucketQueue:
     """
-    An approximate max-priority queue over geometric buckets of ratio `beta`.
+    Una cola de prioridad máxima aproximada sobre buckets geométricos de razón
+    `beta`.
 
-    Non-positive priorities are legal: they all share a sentinel bucket at level
-    -inf whose representative value is 0.0.  That bucket sorts below every
-    numbered one, so such items are always finished last.
+    Las prioridades no positivas son válidas: todas comparten un bucket
+    centinela en el nivel -inf cuyo valor representativo es 0.0.  Ese bucket
+    queda por debajo de todos los numerados, así que esos elementos siempre se
+    terminan al final.
     """
 
     SENTINEL = -inf
@@ -38,23 +41,23 @@ class BetaBucketQueue:
         self.beta = beta
         self._log_beta = log(beta)
         self.key = key
-        self.buckets = {}  # level -> set of items; empty buckets are deleted
-        self.levels = {}  # item -> level
+        self.buckets = {}  # nivel -> conjunto de elementos; los vacíos se borran
+        self.levels = {}  # elemento -> nivel
         for item in items:
             self.insert(item, key(item))
 
-    # -- levels and values --------------------------------------------------
+    # -- niveles y valores ---------------------------------------------------
 
     def level_of(self, priority):
         """
-        Return the bucket level of `priority`, i.e. the m with
-        beta**m < priority <= beta**(m+1), or the sentinel if priority <= 0.
+        Devuelve el nivel de bucket de `priority`, es decir el m con
+        beta**m < priority <= beta**(m+1), o el centinela si priority <= 0.
         """
         if priority <= 0:
             return self.SENTINEL
-        # floor gives the m with beta**m <= priority < beta**(m+1); subtracting
-        # one at an exact power of beta lands it in the half-open interval the
-        # paper uses, (beta**m, beta**(m+1)].
+        # floor da el m con beta**m <= priority < beta**(m+1); restar uno en una
+        # potencia exacta de beta lo lleva al intervalo semiabierto que usa el
+        # artículo, (beta**m, beta**(m+1)].
         m = floor(log(priority) / self._log_beta)
         if self.beta**m >= priority:
             m -= 1
@@ -62,17 +65,18 @@ class BetaBucketQueue:
 
     def value(self, level):
         """
-        The representative value of a bucket: its lower endpoint.
+        El valor representativo de un bucket: su extremo inferior.
 
-        Reporting the lower endpoint is what keeps the algorithm's output a
-        valid lower bound, since every item in the bucket has priority above it.
+        Reportar el extremo inferior es lo que mantiene la salida del algoritmo
+        como una cota inferior válida, ya que todo elemento del bucket tiene una
+        prioridad por encima de él.
         """
         return 0.0 if level == self.SENTINEL else self.beta**level
 
-    # -- queue operations ---------------------------------------------------
+    # -- operaciones de la cola ----------------------------------------------
 
     def insert(self, item, priority=None):
-        """Insert `item`, at the bucket for `priority` (or `key(item)`)."""
+        """Inserta `item` en el bucket de `priority` (o de `key(item)`)."""
         if item in self.levels:
             raise RuntimeError(f"{item!r} is already in the queue.")
         if priority is None:
@@ -82,7 +86,7 @@ class BetaBucketQueue:
         self.buckets.setdefault(level, set()).add(item)
 
     def remove(self, item):
-        """Remove `item` from the queue."""
+        """Quita `item` de la cola."""
         if item not in self.levels:
             raise RuntimeError(f"{item!r} is not in the queue.")
         level = self.levels.pop(item)
@@ -92,7 +96,7 @@ class BetaBucketQueue:
             del self.buckets[level]
 
     def changepriority(self, item, priority=None):
-        """Move `item` to the bucket matching its new priority."""
+        """Mueve `item` al bucket que corresponde a su nueva prioridad."""
         if priority is None:
             priority = self.key(item)
         level = self.level_of(priority)
@@ -102,37 +106,37 @@ class BetaBucketQueue:
         self.insert(item, priority)
 
     def maxlevel(self):
-        """The highest occupied level, or None if the queue is empty."""
+        """El nivel ocupado más alto, o None si la cola está vacía."""
         return max(self.buckets) if self.buckets else None
 
     def findmax(self):
         """
-        An arbitrary item from the highest occupied bucket.
+        Un elemento arbitrario del bucket ocupado más alto.
 
-        Only approximately the maximum: any item within a factor of beta of the
-        true maximum is a legal answer.
+        Solo aproximadamente el máximo: cualquier elemento que esté dentro de un
+        factor beta del máximo verdadero es una respuesta válida.
         """
         if not self.buckets:
             raise RuntimeError("The queue is empty.")
         return next(iter(self.buckets[self.maxlevel()]))
 
     def removemax(self):
-        """Remove and return an item from the highest occupied bucket."""
+        """Quita y devuelve un elemento del bucket ocupado más alto."""
         item = self.findmax()
         self.remove(item)
         return item
 
     def levels_at_or_above(self, threshold):
         """
-        The occupied levels `j >= threshold`, in decreasing order.
+        Los niveles ocupados `j >= threshold`, en orden decreciente.
 
-        Materialised as a list so that the caller can empty buckets while
-        iterating.  Pass `-inf` to sweep the whole queue.
+        Se materializa como lista para que quien llame pueda vaciar buckets
+        mientras itera.  Pasar `-inf` para barrer la cola entera.
         """
         return sorted((j for j in self.buckets if j >= threshold), reverse=True)
 
     def pop_level(self, level):
-        """Remove and return every item in the bucket at `level`, as a set."""
+        """Quita y devuelve, como conjunto, todos los elementos del bucket `level`."""
         items = self.buckets.pop(level, set())
         for item in items:
             del self.levels[item]

@@ -11,7 +11,7 @@ EPSILONS = (0.1, 0.5, 1.0)
 
 
 class ApproximationChecks:
-    """Assertions every variant has to satisfy, whatever epsilon is."""
+    """Comprobaciones que toda variante debe cumplir, sea cual sea epsilon."""
 
     def assert_valid(self, got, exact, epsilon):
         n = len(exact)
@@ -32,7 +32,7 @@ class ApproximationChecks:
 
 
 class TestExact(unittest.TestCase, ApproximationChecks):
-    """With epsilon = 0 the heap variant must reproduce the naive answer."""
+    """Con epsilon = 0 la variante de heap debe reproducir la respuesta ingenua."""
 
     def test_line_examples(self):
         for a_values, b_values, expected in [
@@ -73,7 +73,7 @@ class TestExact(unittest.TestCase, ApproximationChecks):
 
 
 class TestApproximation(unittest.TestCase, ApproximationChecks):
-    """Both variants must honour delta_i <= d_h^(i) <= (1+eps) delta_i."""
+    """Ambas variantes deben respetar delta_i <= d_h^(i) <= (1+eps) delta_i."""
 
     def test_heap_variant(self):
         rng = seeded(6)
@@ -94,8 +94,8 @@ class TestApproximation(unittest.TestCase, ApproximationChecks):
                 self.assert_valid(got, exact, epsilon)
 
     def test_clustered_inputs(self):
-        # Two tight clusters far apart: a large spread, which is what the
-        # log(Delta) terms in the running time are about.
+        # Dos grupos compactos y distantes: una dispersión grande, que es de lo
+        # que hablan los términos log(Delta) del tiempo de ejecución.
         rng = seeded(8)
         A = line([rng.uniform(0, 1) for _ in range(40)] + [1e4, 1e4 + 1])
         B = line([rng.uniform(0, 1) for _ in range(30)])
@@ -115,8 +115,8 @@ class TestApproximation(unittest.TestCase, ApproximationChecks):
                 bucket = all_k_hausdorff_bucket(*trees(A, B), epsilon)
                 self.assertEqual(len(heap), len(bucket))
                 for h, b in zip(heap, bucket):
-                    # Both bracket the same truth, so they agree to within the
-                    # combined approximation factor.
+                    # Ambas acotan la misma verdad, así que coinciden dentro del
+                    # factor de aproximación combinado.
                     self.assertLessEqual(b, (1 + epsilon) * h + TOL)
                     self.assertLessEqual(h, (1 + epsilon) * b + TOL)
 
@@ -144,8 +144,8 @@ class TestEdgeCases(unittest.TestCase, ApproximationChecks):
             self.assertEqual(got, [0, 0, 0, 0])
 
     def test_near_duplicate_points(self):
-        # A tiny minimum pairwise distance blows up the spread Delta, which is
-        # the quantity the running time is logarithmic in.
+        # Una distancia mínima entre pares muy pequeña dispara la dispersión
+        # Delta, que es la cantidad en la que el tiempo es logarítmico.
         A = line([1, 1 + 1e-9, 1 + 2e-9, 7])
         B = line([1, 1 + 1e-9])
         exact = all_partial_hausdorff(A, B)
@@ -154,10 +154,10 @@ class TestEdgeCases(unittest.TestCase, ApproximationChecks):
             self.assert_valid(all_k_hausdorff(*trees(A, B), epsilon), exact, epsilon)
 
     def test_exactly_duplicated_points_are_an_upstream_limitation(self):
-        # greedy_tree cannot build a tree over a set with repeated points: the
-        # greedy permutation runs out of distinct centres and hands `None` to
-        # the metric.  Pinned here so the limitation is visible, and so the
-        # test starts failing if upstream ever lifts it.
+        # greedy_tree no puede construir un árbol sobre un conjunto con puntos
+        # repetidos: la permutación greedy se queda sin centros distintos y le
+        # entrega `None` a la métrica.  Se fija aquí para que la limitación sea
+        # visible, y para que el test falle si alguna vez la levantan.
         with self.assertRaises(TypeError):
             trees(line([1, 1, 1, 7]), line([1, 2]))
 

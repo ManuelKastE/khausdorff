@@ -1,4 +1,4 @@
-"""Shared fixtures for the test suite."""
+"""Utilidades compartidas por la suite de tests."""
 
 import random
 
@@ -10,12 +10,12 @@ TOL = 1e-9
 
 
 def line(values):
-    """A point set on the real line."""
+    """Un conjunto de puntos sobre la recta real."""
     return [R1(v) for v in values]
 
 
 def cloud(n, rng, offset=0.0, dim=2):
-    """`n` uniform points in the unit cube, shifted along the first axis."""
+    """`n` puntos uniformes en el cubo unitario, desplazados sobre el primer eje."""
     return [
         Point([rng.random() + (offset if d == 0 else 0.0) for d in range(dim)])
         for _ in range(n)
@@ -23,16 +23,17 @@ def cloud(n, rng, offset=0.0, dim=2):
 
 
 def trees(A, B):
-    """Fresh greedy trees for `A` and `B`.
+    """Árboles greedy nuevos para `A` y `B`.
 
-    Always build a new pair: the search mutates the viability graph it is given,
-    so a tree must not be reused across two runs.
+    Hay que construir siempre un par nuevo: la búsqueda muta el grafo de
+    viabilidad que recibe, así que un árbol no debe reutilizarse entre dos
+    ejecuciones.
     """
     return greedy_tree(MetricSpace(A)), greedy_tree(MetricSpace(B))
 
 
 def random_pair(rng, max_a=60, max_b=40, dim=2):
-    """A random pair of partially overlapping point clouds."""
+    """Un par aleatorio de nubes de puntos parcialmente superpuestas."""
     A = cloud(rng.randint(1, max_a), rng, dim=dim)
     B = cloud(rng.randint(1, max_b), rng, offset=0.4, dim=dim)
     return A, B

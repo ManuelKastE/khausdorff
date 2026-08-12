@@ -1,46 +1,47 @@
 """
-An exact max-heap of local lower bounds, with a working `remove`.
+Un max-heap exacto de cotas inferiores locales, con un `remove` que funciona.
 
-k-HAUSDORFF removes nodes from the middle of the lower bound heap all the time:
-whenever an A-side node is split its parent is retired, and whenever the
-finishing condition fires a node is cut out.  The heap it inherits from does not
-support that correctly, hence this subclass.
+k-HAUSDORFF remueve nodos desde el medio del heap de cotas inferiores todo el
+tiempo: cada vez que se divide un nodo del lado A se retira a su padre, y cada
+vez que se dispara la condición de terminación se recorta un nodo.  El heap del
+que hereda no admite eso correctamente, de ahí esta subclase.
 
-The bug is in `ds2`, one level below `greedypermutation`.  `PriorityQueue.
-_remove_at_index` fills the hole with the last entry and then only sifts it
-*down*:
+El bug está en `ds2`, un nivel por debajo de `greedypermutation`.
+`PriorityQueue._remove_at_index` rellena el hueco con la última entrada y luego
+solo la hunde hacia *abajo*:
 
     def _remove_at_index(self, index):
         L = self._entries
         self._swap(index, len(L) - 1)
         del self._itemmap[L[-1].item]
         L.pop()
-        self._downheap(index)          # <- an entry that must move up cannot
+        self._downheap(index)          # <- una entrada que debe subir no puede
 
-The entry moved in comes from an unrelated subtree, so it may well belong
-*above* the hole.  When it does, the heap order breaks silently and `findmax`
-starts handing back the wrong node.  Fuzzing puts this at roughly 1% of removals
-on random inputs, which is more than enough to scramble the output ordering.
+La entrada que se mueve al hueco viene de un subárbol no relacionado, así que
+bien puede corresponderle estar *por encima* de él.  Cuando así es, el orden del
+heap se rompe silenciosamente y `findmax` empieza a devolver el nodo equivocado.
+El fuzzing lo sitúa en torno al 1% de las remociones sobre entradas aleatorias,
+más que suficiente para desordenar la salida.
 
-Nothing else in `greedypermutation` calls `remove`, which is presumably why the
-bug has gone unnoticed; `dist_H` and `DualTreeSearch` only ever insert and pop
-the maximum.
+Nada más dentro de `greedypermutation` llama a `remove`, que es presumiblemente
+por qué el bug pasó inadvertido; `dist_H` y `DualTreeSearch` solo insertan y
+extraen el máximo.
 """
 
 from greedypermutation.maxheap import MaxHeap
 
 
 class LowerBoundHeap(MaxHeap):
-    """A `MaxHeap` whose `remove` preserves the heap order."""
+    """Un `MaxHeap` cuyo `remove` preserva el orden del heap."""
 
     def changepriority(self, item, priority=None):
         """
-        Move `item` to `priority`, or to `key(item)` if none is given.
+        Mueve `item` a `priority`, o a `key(item)` si no se da ninguna.
 
-        `MaxHeap` negates the priority in `insert` but inherits
-        `changepriority` unchanged, so upstream the two disagree about sign and
-        an explicit priority silently inverts the order.  Negating here keeps
-        them consistent.
+        `MaxHeap` niega la prioridad en `insert` pero hereda `changepriority`
+        sin cambios, de modo que en el original ambos discrepan en el signo y
+        una prioridad explícita invierte el orden en silencio.  Negar aquí los
+        deja consistentes.
         """
         if priority is not None:
             priority = -priority
@@ -52,9 +53,10 @@ class LowerBoundHeap(MaxHeap):
         del self._itemmap[entries[-1].item]
         entries.pop()
         if index < len(entries):
-            # The entry swapped into the hole may belong either above or below
-            # it.  Only one of these two calls can have an effect, the same way
-            # `changepriority` handles an arbitrary priority change.
+            # A la entrada que se intercambió al hueco puede corresponderle
+            # tanto subir como bajar.  Solo una de estas dos llamadas puede
+            # tener efecto, igual que hace `changepriority` ante un cambio de
+            # prioridad arbitrario.
             self._upheap(index)
             self._downheap(index)
 

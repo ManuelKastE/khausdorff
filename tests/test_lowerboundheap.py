@@ -17,8 +17,8 @@ class TestLowerBoundHeap(unittest.TestCase):
         self.assertEqual(self.drain(heap), [9, 7, 5, 3, 1])
 
     def test_remove_preserves_heap_order(self):
-        # The upstream MaxHeap fails this: ds2's `_remove_at_index` fills the
-        # hole with the last entry and only sifts it down, never up.
+        # El MaxHeap original falla esto: `_remove_at_index` de ds2 rellena el
+        # hueco con la última entrada y solo la hunde hacia abajo, nunca arriba.
         heap = LowerBoundHeap()
         values = [6, 63, 103, 19, 69, 142, 187]
         for value in values:
@@ -27,9 +27,9 @@ class TestLowerBoundHeap(unittest.TestCase):
         self.assertEqual(self.drain(heap), sorted(set(values) - {6}, reverse=True))
 
     def test_upstream_maxheap_really_is_broken(self):
-        # Pins the reason this subclass exists.  If a future release of ds2
-        # fixes `_remove_at_index`, this test starts failing and the subclass
-        # can be dropped.
+        # Fija la razón por la que existe esta subclase.  Si una versión futura
+        # de ds2 arregla `_remove_at_index`, este test empieza a fallar y la
+        # subclase puede eliminarse.
         heap = MaxHeap()
         values = [6, 63, 103, 19, 69, 142, 187]
         for value in values:
@@ -59,7 +59,7 @@ class TestLowerBoundHeap(unittest.TestCase):
         self.assertEqual(heap.findmax(), 3)
 
     def test_mutable_key_function(self):
-        # How KHausdorff uses it: the key reads a dict that changes underneath.
+        # Como lo usa KHausdorff: la clave lee un dict que cambia por debajo.
         bounds = {"a": 1.0, "b": 2.0}
         heap = LowerBoundHeap(key=lambda x: bounds[x])
         heap.insert("a")

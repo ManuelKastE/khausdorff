@@ -1,6 +1,7 @@
 """
-End-to-end demo: approximate every partial directed Hausdorff distance between
-two point clouds and compare against the exact answer.
+Demostración de punta a punta: aproxima todas las distancias de Hausdorff
+dirigidas parciales entre dos nubes de puntos y las compara con la respuesta
+exacta.
 
     python examples/demo.py
     python examples/demo.py --n 200 --m 120 --epsilon 0.3 --variant bucket
@@ -27,26 +28,27 @@ def cloud(n, rng, offset=0.0, dim=2):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--n", type=int, default=40, help="points in A")
-    parser.add_argument("--m", type=int, default=25, help="points in B")
+    parser.add_argument("--n", type=int, default=40, help="puntos en A")
+    parser.add_argument("--m", type=int, default=25, help="puntos en B")
     parser.add_argument("--dim", type=int, default=2)
     parser.add_argument("--epsilon", type=float, default=0.1)
     parser.add_argument(
         "--offset",
         type=float,
         default=0.4,
-        help="how far B is shifted from A along the first axis",
+        help="cuánto se desplaza B respecto de A sobre el primer eje",
     )
     parser.add_argument("--variant", choices=("heap", "bucket"), default="heap")
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--rows", type=int, default=12, help="rows to print")
+    parser.add_argument("--rows", type=int, default=12, help="filas a imprimir")
     args = parser.parse_args()
 
     rng = random.Random(args.seed)
     A = cloud(args.n, rng, dim=args.dim)
     B = cloud(args.m, rng, offset=args.offset, dim=args.dim)
 
-    # Preprocessing: one greedy tree per set, reusable across queries.
+    # Preprocesamiento: un árbol greedy por conjunto, reutilizable entre
+    # consultas.
     G_A = greedy_tree(MetricSpace(A))
     G_B = greedy_tree(MetricSpace(B))
 

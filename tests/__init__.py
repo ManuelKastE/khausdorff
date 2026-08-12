@@ -1,12 +1,13 @@
-"""Test suite for `khausdorff`.
+"""Suite de tests de `khausdorff`.
 
-This file is not decorative.  The tests import each other as
-`from tests.helpers import ...`, and without an `__init__.py` the directory is
-only a PEP 420 namespace portion, which loses name resolution to any *regular*
-top-level `tests` package installed in the environment.  `greedypermutation`
-used to install exactly such a package; making this one regular means the suite
-resolves to itself no matter what else is on the path.
+Este archivo no es decorativo.  Los tests se importan entre sí como
+`from tests.helpers import ...`, y sin un `__init__.py` la carpeta es solo una
+*namespace portion* (PEP 420), que pierde la resolución de nombres frente a
+cualquier paquete `tests` regular de nivel superior instalado en el entorno.
+`greedypermutation` instalaba exactamente uno de esos; volver este paquete
+regular hace que la suite se resuelva a sí misma sin importar qué más haya en
+el path.
 
-`pyproject.toml` restricts packaging to `khausdorff*`, so this package is never
-shipped -- adding it here does not repeat the mistake it guards against.
+`pyproject.toml` restringe el empaquetado a `khausdorff*`, así que este paquete
+nunca se distribuye: agregarlo aquí no repite el error del que protege.
 """

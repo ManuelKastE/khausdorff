@@ -1,9 +1,9 @@
 """
-khausdorff: approximate partial directed Hausdorff distances.
+khausdorff: distancias de Hausdorff dirigidas parciales aproximadas.
 
-Implements the k-HAUSDORFF algorithm of Section 5 of Chubet, Parikh, Sheehy and
-Sheth, "Approximating the Directed Hausdorff Distance" (2023), on top of the
-greedy trees and dual-tree traversal of the `greedypermutation` package.
+Implementa el algoritmo k-HAUSDORFF de la Sección 5 de Chubet, Parikh, Sheehy y
+Sheth, "Approximating the Directed Hausdorff Distance" (2023), sobre los árboles
+greedy y el recorrido de árbol dual del paquete `greedypermutation`.
 """
 
 from khausdorff.khausdorff import KHausdorff, all_k_hausdorff, k_hausdorff

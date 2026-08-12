@@ -12,8 +12,8 @@ class TestBetaBucketQueue(unittest.TestCase):
                 BetaBucketQueue(beta)
 
     def test_insert_into_an_empty_queue(self):
-        # The regression that makes greedypermutation.fvm.bucketqueue unusable:
-        # its `insert` calls `max()` on an empty bucket dict and raises.
+        # La regresión que vuelve inutilizable a greedypermutation.fvm.bucketqueue:
+        # su `insert` llama a `max()` sobre un dict de buckets vacío y lanza error.
         q = BetaBucketQueue(1.5)
         q.insert("a", 3.0)
         self.assertEqual(len(q), 1)
@@ -28,7 +28,7 @@ class TestBetaBucketQueue(unittest.TestCase):
             self.assertLessEqual(priority, beta ** (level + 1))
 
     def test_exact_powers_land_in_the_lower_bucket(self):
-        # Buckets are (beta**m, beta**(m+1)], so beta**m belongs to bucket m-1.
+        # Los buckets son (beta**m, beta**(m+1)], así que beta**m cae en el m-1.
         beta = 2.0
         q = BetaBucketQueue(beta)
         self.assertEqual(q.level_of(beta**5), 4)
@@ -52,8 +52,8 @@ class TestBetaBucketQueue(unittest.TestCase):
         q = BetaBucketQueue(beta)
         for priority in (0.4, 2.0, 17.0):
             level = q.level_of(priority)
-            # Reporting the lower endpoint is what keeps the output a valid
-            # lower bound on the true distance.
+            # Reportar el extremo inferior es lo que mantiene la salida como
+            # una cota inferior válida de la distancia verdadera.
             self.assertLess(q.value(level), priority)
 
     def test_remove_and_contains(self):
