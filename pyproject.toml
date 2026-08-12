@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "khausdorff"
+version = "0.1.0"
+description = "Approximate k-th partial directed Hausdorff distance (Chubet, Parikh, Sheehy & Sheth, 2023, Section 5)"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+authors = [{ name = "Manuel Kast", email = "manuel.kast@estudiante.uc.cl" }]
+keywords = ["hausdorff", "partial hausdorff", "greedy permutation", "ball tree", "dual tree"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+
+# NOTE: this points at a *fork* of donsheehy/greedypermutation, not at PyPI and
+# not at upstream, and it has to.  Upstream ships no `__init__.py` in
+# `greedypermutation/dualtrees/`, so `setuptools.find_packages()` skips the
+# subpackage and no build of upstream contains it -- neither the PyPI release
+# nor `pip install git+...`.  The fork adds the missing file; see the
+# "Dependency note" in README.md for what it changes and why.
+#
+# Pinned to a commit SHA rather than to the `packaging-fix` branch, so that the
+# resolved dependency cannot shift under an existing install.
+dependencies = [
+    "greedypermutation @ git+https://github.com/ManuelKastE/greedypermutation.git@793a33f3ce3716989d9a9496429dc6a71fca8565",
+    "ds2>=0.2.4",
+    "metricspaces>=0.4.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/ManuelKastE/khausdorff"
+
+[tool.setuptools.packages.find]
+include = ["khausdorff*"]
