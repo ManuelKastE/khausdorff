@@ -60,17 +60,24 @@ def hausdorff_percentile(G_A, G_B, q, epsilon=0, monotone=True):
 
         hausdorff_percentile(G_A, G_B, 100)  # la distancia de Hausdorff dirigida
         hausdorff_percentile(G_A, G_B, 95)   # descartando el 5% de los puntos
+
+    El recorrido se abandona apenas se conoce ese delta_k.  Como `len(G_A)` da
+    |A| sin recorrer nada, el k se conoce de antemano y el corte se aprovecha
+    entero: pedir el percentil 95 cuesta casi lo mismo que pedir el máximo.
     """
-    return _at_percentile(all_k_hausdorff(G_A, G_B, epsilon, monotone), q)
+    k = k_for_percentile(len(G_A), q)
+    return all_k_hausdorff(G_A, G_B, epsilon, monotone, stop_after=k)[k]
 
 
 def hausdorff_percentile_bucket(G_A, G_B, q, epsilon, monotone=True):
     """
     El percentil `q` de las distancias d(a, B), con la variante de buckets.
 
-    Requiere `epsilon > 0`, igual que `all_k_hausdorff_bucket`.
+    Requiere `epsilon > 0`, igual que `all_k_hausdorff_bucket`.  Corta el
+    recorrido igual que `hausdorff_percentile`.
     """
-    return _at_percentile(all_k_hausdorff_bucket(G_A, G_B, epsilon, monotone), q)
+    k = k_for_percentile(len(G_A), q)
+    return all_k_hausdorff_bucket(G_A, G_B, epsilon, monotone, stop_after=k)[k]
 
 
 def partial_hausdorff_percentile(A: list, B: list, q) -> float:

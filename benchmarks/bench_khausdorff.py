@@ -28,6 +28,7 @@ from metricspaces import MetricSpace
 from khausdorff.bucketkhausdorff import all_k_hausdorff_bucket
 from khausdorff.khausdorff import all_k_hausdorff
 from khausdorff.naive import all_partial_hausdorff
+from khausdorff.percentile import hausdorff_percentile, hausdorff_percentile_bucket
 
 # Por encima de este tamaño la referencia O(n*m) es demasiado lenta para
 # ejecutarla por omisión.
@@ -51,9 +52,9 @@ def number_list(text, cast):
     return [cast(part) for part in text.split(",") if part.strip()]
 
 
-def run_case(A, B, epsilon, variant, compare, repeat):
+def run_case(A, B, epsilon, variant, compare, repeat, percentile=None):
     """Cronometra una celda (tamaño, epsilon, variante) y devuelve una fila."""
-    build_times, run_times, results = [], [], None
+    build_times, run_times, early_times, results = [], [], [], None
     for _ in range(repeat):
         (trees, build) = timed(
             lambda: (greedy_tree(MetricSpace(A)), greedy_tree(MetricSpace(B)))
@@ -64,6 +65,17 @@ def run_case(A, B, epsilon, variant, compare, repeat):
         build_times.append(build)
         run_times.append(run)
 
+        if percentile is not None:
+            # Arboles nuevos: la busqueda anterior ya consumio los otros.
+            G_A, G_B = greedy_tree(MetricSpace(A)), greedy_tree(MetricSpace(B))
+            query = (
+                hausdorff_percentile
+                if variant == "heap"
+                else hausdorff_percentile_bucket
+            )
+            _, early = timed(lambda: query(G_A, G_B, percentile, epsilon))
+            early_times.append(early)
+
     row = {
         "n": len(A),
         "m": len(B),
@@ -71,10 +83,14 @@ def run_case(A, B, epsilon, variant, compare, repeat):
         "variant": variant,
         "build_s": min(build_times),
         "khausdorff_s": min(run_times),
+        "early_s": min(early_times) if early_times else None,
+        "early_speedup": None,
         "naive_s": None,
         "speedup": None,
         "worst_ratio": None,
     }
+    if row["early_s"]:
+        row["early_speedup"] = row["khausdorff_s"] / row["early_s"]
 
     if compare:
         exact, naive_time = timed(lambda: all_partial_hausdorff(A, B))
@@ -96,7 +112,8 @@ def run_case(A, B, epsilon, variant, compare, repeat):
 
 HEADER = (
     f"{'n':>7} {'m':>7} {'eps':>5} {'variant':>7} {'build s':>9} "
-    f"{'kH s':>9} {'naive s':>9} {'speedup':>8} {'ratio':>7}"
+    f"{'kH s':>9} {'corte s':>9} {'x corte':>8} {'naive s':>9} {'speedup':>8} "
+    f"{'ratio':>7}"
 )
 
 
@@ -108,6 +125,7 @@ def format_row(row):
     return (
         f"{row['n']:>7} {row['m']:>7} {row['epsilon']:>5} {row['variant']:>7} "
         f"{row['build_s']:>9.4f} {row['khausdorff_s']:>9.4f} "
+        f"{fmt(row['early_s'], 9, 4)} {fmt(row['early_speedup'], 8, 2)} "
         f"{fmt(row['naive_s'], 9, 4)} {fmt(row['speedup'], 8, 1)} "
         f"{fmt(row['worst_ratio'], 7, 4)}"
     )
@@ -131,6 +149,13 @@ def main():
         help="'naive' cronometra además la referencia exacta O(n*m) y reporta "
         "la razón de aproximación observada; 'none' cronometra solo k-Hausdorff; "
         f"'auto' usa naive hasta n={NAIVE_AUTO_LIMIT} y none por encima",
+    )
+    parser.add_argument(
+        "--percentile",
+        type=float,
+        default=None,
+        help="además del recorrido completo, cronometrar la consulta de este "
+        "percentil con terminación temprana, y reportar la aceleración",
     )
     parser.add_argument("--dim", type=int, default=2)
     parser.add_argument("--offset", type=float, default=0.4)
@@ -161,7 +186,9 @@ def main():
                 if variant == "bucket" and epsilon <= 0:
                     print("  (bucket variant needs epsilon > 0: skipped)")
                     continue
-                row = run_case(A, B, epsilon, variant, compare, args.repeat)
+                row = run_case(
+                    A, B, epsilon, variant, compare, args.repeat, args.percentile
+                )
                 rows.append(row)
                 print(format_row(row))
 

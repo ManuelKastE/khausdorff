@@ -53,6 +53,9 @@ class KHausdorff(DualTreeSearch):
         self.epsilon = epsilon
         self.monotone = monotone
         self.out = []
+        # Hasta que k hay que llegar, o None para recorrer todo.  Lo fija
+        # `__call__`; ver `_enough`.
+        self.stop_after = None
         # Cotas inferiores locales l(x), para cada nodo x de G_A en el grafo.
         self.lb = {}
         self.L = self._make_lb_heap()
@@ -116,6 +119,16 @@ class KHausdorff(DualTreeSearch):
             self.G.remove_edge(a, b)
 
     # -- terminación ---------------------------------------------------------
+
+    def _enough(self):
+        """
+        True si ya se emitió el delta_k pedido y se puede abandonar el recorrido.
+
+        Que esto sea correcto depende de que `_emit` solo agregue al final:
+        nunca reescribe una entrada ya emitida, de modo que out[k] queda fijo en
+        el instante en que se escribe y cortar después no puede alterarlo.
+        """
+        return self.stop_after is not None and len(self.out) > self.stop_after
 
     def _emit(self, value, count):
         """Agrega `value` a la salida una vez por punto, manteniendo monotonía."""
@@ -185,6 +198,8 @@ class KHausdorff(DualTreeSearch):
             if r > c * self.lb[x]:
                 return
             self._finish(x)
+            if self._enough():
+                return
 
     def cleanup_all(self):
         """
@@ -196,6 +211,8 @@ class KHausdorff(DualTreeSearch):
         """
         while len(self.L):
             self._finish(self._pop_max_lb())
+            if self._enough():
+                return
 
     # -- ganchos de DualTreeSearch -------------------------------------------
 
@@ -233,17 +250,30 @@ class KHausdorff(DualTreeSearch):
             return True
         return False
 
-    def __call__(self):
+    def __call__(self, stop_after=None):
         """
-        Ejecuta el recorrido hasta el final y devuelve la lista de distancias
-        parciales aproximadas (delta_0, ..., delta_n), de largo n + 1.
+        Ejecuta el recorrido y devuelve las distancias parciales aproximadas.
+
+        Con `stop_after=None` recorre todo y devuelve (delta_0, ..., delta_n),
+        de largo n + 1.  Con `stop_after=k` abandona el recorrido apenas conoce
+        delta_k y devuelve solo (delta_0, ..., delta_k).
+
+        Ese corte es la "simple modification of Hausdorff" que menciona la
+        Sección 5 del artículo: HAUSDORFF (Sección 4) termina la primera vez que
+        se cumple la condición de parada, y cumplirla k+1 veces da d_h^(k).
+        k-HAUSDORFF, en cambio, "runs over the whole input list" para obtener
+        todos los k a la vez.
 
         No se reutiliza `DualTreeSearch.__call__` porque la condición de
         terminación debe evaluarse al *inicio* de cada iteración, y porque hay
         que saltarse los nodos ya terminados.
         """
+        self.stop_after = stop_after
+
         for ball in self.H:
             self.finish_pending(ball.radius)
+            if self._enough():
+                return self.out[: stop_after + 1]
             if ball.isleaf():
                 # El heap está ordenado por radio decreciente, así que de aquí
                 # en adelante todo nodo sobreviviente es una hoja de radio 0.
@@ -253,19 +283,28 @@ class KHausdorff(DualTreeSearch):
             self.iteration(ball)
 
         self.cleanup_all()
+        if self._enough():
+            return self.out[: stop_after + 1]
+
         # El caso k = n: A^(n) = {conjunto vacío}, y d_h(vacío, B) = 0 por
         # convención.  El artículo incluye este valor -- su salida es una lista
         # de n + 1 elementos, con k recorriendo {0, ..., n}.
         self.out.append(0.0)
-        return self.out
+        return self.out if stop_after is None else self.out[: stop_after + 1]
 
 
-def all_k_hausdorff(G_A, G_B, epsilon=0, monotone=True):
+def all_k_hausdorff(G_A, G_B, epsilon=0, monotone=True, stop_after=None):
     """
     Devuelve (delta_0, ..., delta_n) con delta_i <= d_h^(i)(A,B) <= (1+eps) delta_i.
 
     La lista tiene n + 1 elementos, uno por cada k en {0, ..., n} con n = |A|.
     El último, delta_n, es 0: descartar los n puntos de A no deja nada que medir.
+
+    Con `stop_after=k` el recorrido se abandona apenas se conoce delta_k y la
+    lista devuelta es (delta_0, ..., delta_k).  Los valores son idénticos a los
+    del recorrido completo; lo único que cambia es cuánto trabajo se hace.
+    Cuánto se ahorra depende de `epsilon`: con epsilon = 0 la condición de
+    terminación nunca se cumple y hay que recorrer todo igual.
 
     `G_A` y `G_B` son árboles greedy, como los que produce
     `greedypermutation.balltree.greedy_tree`.  Con `epsilon=0` el resultado es
@@ -275,12 +314,19 @@ def all_k_hausdorff(G_A, G_B, epsilon=0, monotone=True):
     Para indexar por percentil en vez de por cantidad de descartes, ver
     `khausdorff.percentile`.
     """
-    return KHausdorff(G_A, G_B, epsilon, monotone)()
+    return KHausdorff(G_A, G_B, epsilon, monotone)(stop_after)
 
 
 def k_hausdorff(G_A, G_B, k, epsilon=0, monotone=True):
-    """Devuelve la k-ésima distancia de Hausdorff dirigida parcial aproximada."""
-    distances = all_k_hausdorff(G_A, G_B, epsilon, monotone)
-    if not 0 <= k < len(distances):
+    """
+    Devuelve la k-ésima distancia de Hausdorff dirigida parcial aproximada.
+
+    Corta el recorrido apenas conoce delta_k, así que cuesta menos que pedir la
+    secuencia completa.
+    """
+    if k < 0:
+        raise IndexError(f"k must be non-negative, got {k}.")
+    distances = all_k_hausdorff(G_A, G_B, epsilon, monotone, stop_after=k)
+    if k >= len(distances):
         raise IndexError(f"k must be in [0, {len(distances)}), got {k}.")
     return distances[k]

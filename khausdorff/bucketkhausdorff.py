@@ -107,6 +107,11 @@ class KHausdorffBucket(KHausdorff):
             value = self.L.value(level)
             for node in self.L.pop_level(level):
                 self._retire(node, value)
+            # El corte se consulta *entre* buckets y nunca dentro de uno:
+            # `pop_level` los saca todos de golpe, así que abandonar a mitad
+            # dejaría nodos fuera de la cola sin retirar.
+            if self._enough():
+                return
 
     def finish_pending(self, r):
         """
@@ -122,17 +127,25 @@ class KHausdorffBucket(KHausdorff):
         self._sweep(-inf)
 
 
-def all_k_hausdorff_bucket(G_A, G_B, epsilon, monotone=True):
+def all_k_hausdorff_bucket(G_A, G_B, epsilon, monotone=True, stop_after=None):
     """
-    Devuelve (delta_0, ..., delta_{n-1}) con delta_i <= d_h^(i)(A,B) <= (1+eps) delta_i,
+    Devuelve (delta_0, ..., delta_n) con delta_i <= d_h^(i)(A,B) <= (1+eps) delta_i,
     calculado con la variante de cola de buckets beta.  Requiere `epsilon > 0`.
+
+    Con `stop_after=k` corta apenas conoce delta_k; ver `all_k_hausdorff`.
     """
-    return KHausdorffBucket(G_A, G_B, epsilon, monotone)()
+    return KHausdorffBucket(G_A, G_B, epsilon, monotone)(stop_after)
 
 
 def k_hausdorff_bucket(G_A, G_B, k, epsilon, monotone=True):
-    """Devuelve la k-ésima distancia de Hausdorff dirigida parcial aproximada."""
-    distances = all_k_hausdorff_bucket(G_A, G_B, epsilon, monotone)
-    if not 0 <= k < len(distances):
+    """
+    Devuelve la k-ésima distancia de Hausdorff dirigida parcial aproximada.
+
+    Corta el recorrido apenas conoce delta_k.
+    """
+    if k < 0:
+        raise IndexError(f"k must be non-negative, got {k}.")
+    distances = all_k_hausdorff_bucket(G_A, G_B, epsilon, monotone, stop_after=k)
+    if k >= len(distances):
         raise IndexError(f"k must be in [0, {len(distances)}), got {k}.")
     return distances[k]

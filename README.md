@@ -90,8 +90,8 @@ Tres advertencias que conviene dejar claras de entrada:
 
 | Función | Devuelve |
 |---|---|
-| `all_k_hausdorff(G_A, G_B, epsilon=0, monotone=True)` | la lista completa `(delta_0, …, delta_n)`, variante de heap exacto |
-| `k_hausdorff(G_A, G_B, k, epsilon=0)` | un único `delta_k` |
+| `all_k_hausdorff(G_A, G_B, epsilon=0, monotone=True, stop_after=None)` | la lista completa `(delta_0, …, delta_n)`, variante de heap exacto; con `stop_after=k` solo hasta `delta_k` |
+| `k_hausdorff(G_A, G_B, k, epsilon=0)` | un único `delta_k`, cortando el recorrido |
 | `all_k_hausdorff_bucket(G_A, G_B, epsilon)` | lo mismo, variante de cola de buckets β (requiere `epsilon > 0`) |
 | `all_partial_hausdorff(A, B)` | la respuesta exacta por fuerza bruta, `O(|A|·|B|)`; recibe **puntos**, no árboles |
 | `hausdorff_percentile(G_A, G_B, q, epsilon=0)` | el percentil `q` en vez del `k`-ésimo (ver abajo) |
@@ -132,6 +132,46 @@ garantía `(1 + ε)`** del artículo. Interpolar entre dos `delta_k`, como hace 
 por omisión, devolvería un valor que el algoritmo nunca computó y la demostración de la cota
 dejaría de aplicarse tal cual.
 
+### Terminación temprana
+
+Pedir un solo valor no paga el recorrido completo. El artículo describe **dos** algoritmos: la
+*"simple modification of Hausdorff"* que corta la `(k+1)`-ésima vez que se cumple la condición de
+parada, y `k-HAUSDORFF`, del que dice *"the loop runs over the whole input list"*. Este paquete
+implementa los dos.
+
+```python
+all_k_hausdorff(G_A, G_B, epsilon)                  # los n+1 valores
+all_k_hausdorff(G_A, G_B, epsilon, stop_after=k)    # solo (delta_0, …, delta_k)
+```
+
+`k_hausdorff`, `k_hausdorff_bucket`, `hausdorff_percentile` y `hausdorff_percentile_bucket` cortan
+**por omisión**: los valores devueltos son idénticos a los del recorrido completo, solo cambia
+cuánto trabajo se hace. Como `len(G_A)` da `|A|` sin recorrer nada, el `k` de un percentil se
+conoce de antemano y el corte se aprovecha entero.
+
+Cuánto se gana depende de `epsilon`, porque la condición es `r ≤ c·ℓ(x)` con `c = ε/(3+ε)`.
+Medido con `n = 2000`, `|B| = 1200`, percentil 95:
+
+| `epsilon` | recorrido completo | con corte | aceleración |
+|---:|---:|---:|---:|
+| 0.1 | 1.34 s | 1.20 s | 1.12× |
+| 0.25 | 1.25 s | 0.93 s | 1.34× |
+| 0.5 | 1.22 s | 0.68 s | 1.78× |
+| 1.0 | 1.12 s | 0.43 s | 2.59× |
+
+Tres advertencias honestas:
+
+- **Con `epsilon = 0` no ahorra nada.** La constante de terminación es 0, la condición no se
+  cumple nunca y hay que recorrer todo igual.
+- **El ahorro en iteraciones no se traduce proporcionalmente en tiempo.** Con `ε = 0.5` se saltan
+  el 70% de las iteraciones pero solo el 44% del tiempo: las que se saltan son las del final,
+  sobre bolas pequeñas con pocas aristas, mientras que las caras están al principio.
+- **La variante de buckets se beneficia mucho menos** (1.02× a 1.63×). Corta más tarde que el
+  heap — con `ε = 0.5` le quedan el 56% de las iteraciones frente al 30% del heap — porque el
+  umbral es un nivel de bucket y la cuantización vuelve la condición más conservadora.
+
+Reproducible con `python benchmarks/bench_khausdorff.py --percentile 95 --variant both`.
+
 ### Dos variantes
 
 | | heap de cotas inferiores | costo por actualización | notas |
@@ -142,6 +182,14 @@ dejaría de aplicarse tal cual.
 Ambas satisfacen la misma garantía. La variante de buckets reporta extremos de bucket en vez de
 cotas inferiores exactas, así que sus respuestas son levemente más gruesas con el mismo
 `epsilon`.
+
+**La variante de buckets no es reproducible.** Dos ejecuciones sobre la misma entrada pueden dar
+resultados distintos, ambos dentro de la garantía. `BetaBucketQueue.findmax` devuelve un elemento
+arbitrario del bucket más alto —`next(iter(...))` sobre un conjunto— y los nodos se hashean por
+identidad, así que el orden depende de las direcciones de memoria. Es deliberado: no distinguir
+entre nodos cuyas cotas coinciden salvo por un factor `β` es justamente lo que compra el `O(1)`.
+Consecuencia práctica: **no compares dos corridas de la variante de buckets con igualdad exacta**;
+compara contra las cotas. `KHausdorff` sí es reproducible.
 
 ## Desviaciones respecto al artículo
 
