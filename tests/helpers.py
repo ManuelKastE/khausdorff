@@ -1,10 +1,9 @@
-"""Utilidades compartidas por la suite de tests."""
+"""Utilidades compartidas por los tests."""
 
 import random
 
-from greedypermutation.balltree import greedy_tree
 from greedypermutation.point import Point
-from metricspaces import MetricSpace, R1
+from metricspaces import R1
 
 TOL = 1e-9
 
@@ -22,21 +21,12 @@ def cloud(n, rng, offset=0.0, dim=2):
     ]
 
 
-def trees(A, B):
-    """Árboles greedy nuevos para `A` y `B`.
-
-    Hay que construir siempre un par nuevo: la búsqueda muta el grafo de
-    viabilidad que recibe, así que un árbol no debe reutilizarse entre dos
-    ejecuciones.
-    """
-    return greedy_tree(MetricSpace(A)), greedy_tree(MetricSpace(B))
-
-
 def random_pair(rng, max_a=60, max_b=40, dim=2):
     """Un par aleatorio de nubes de puntos parcialmente superpuestas."""
-    A = cloud(rng.randint(1, max_a), rng, dim=dim)
-    B = cloud(rng.randint(1, max_b), rng, offset=0.4, dim=dim)
-    return A, B
+    return (
+        cloud(rng.randint(1, max_a), rng, dim=dim),
+        cloud(rng.randint(1, max_b), rng, offset=0.4, dim=dim),
+    )
 
 
 def seeded(seed):
