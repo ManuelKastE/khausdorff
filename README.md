@@ -45,7 +45,14 @@ greedy, árboles greedy y el recorrido de árbol dual— ya están en
 [donsheehy/greedypermutation](https://github.com/donsheehy/greedypermutation); esto se apoya en
 aquel en vez de duplicarlo.
 
-**La distancia es dirigida:** intercambiar `A` y `B` da otra respuesta.
+Dos cosas que definen para qué sirve esto:
+
+- **La distancia es dirigida:** intercambiar `A` y `B` da otra respuesta.
+- **Está pensado para 2 o 3 dimensiones**, y desde unos mil puntos. Funciona en cualquier
+  dimensión y las respuestas siempre son correctas, pero el costo del algoritmo rápido es
+  exponencial en la dimensión: desde `d = 3` la fuerza bruta ya conviene, y en `d = 8` le gana
+  por 141×. Los números están en
+  [Rendimiento y complejidad](#rendimiento-y-complejidad).
 
 ## Instalación
 
@@ -95,7 +102,9 @@ Escribe `A.csv` y `B.csv` con un número aleatorio de puntos cada uno, sin repet
 temprana. Con `epsilon > 0` el recorrido se abandona apenas se conoce el valor pedido, así que
 el percentil 95 cuesta casi lo mismo que el 100.
 
-Con entradas grandes conviene `--modo aprox`: la fuerza bruta es cuadrática.
+Con entradas grandes conviene `--modo aprox`: la fuerza bruta es cuadrática. Antes de elegir,
+conviene leer [Rendimiento y complejidad](#rendimiento-y-complejidad): por debajo de unos mil
+puntos, o en dimensión alta, la fuerza bruta gana.
 
 ## Desde Python
 
@@ -122,6 +131,98 @@ Dos cosas que conviene saber:
   **herede intacta la garantía `(1 + ε)`**. `numpy.percentile` interpola por omisión y devolvería
   un valor que el algoritmo nunca computó.
 
+### Reusar el árbol entre consultas
+
+`hausdorff()` construye los árboles en cada llamada, y construirlos es lo más caro de todo. Los
+árboles **sí se pueden reusar**: `Ball` se arma una vez y la búsqueda solo lo lee; todo lo que se
+muta lo crea de cero cada `KHausdorff`. Para muchas consultas sobre los mismos puntos conviene
+bajar a la clase:
+
+```python
+from khausdorff import KHausdorff, _as_points, _trees, _k_for_percentile
+
+A, B = _as_points("datos/A.csv"), _as_points("datos/B.csv")
+G_A, G_B = _trees(A, B)                       # una sola vez
+
+for q in (100, 99, 95, 90):
+    k = _k_for_percentile(len(A), q)
+    print(q, KHausdorff(G_A, G_B, 0.5)(stop_after=k)[k])
+```
+
+Ahora bien, esto rara vez conviene. Si el par `(A, B)` es fijo, `all_distances(A, B)` te da los
+`n + 1` valores de **todos** los percentiles en un solo recorrido: guardas ese arreglo y respondes
+cualquier percentil por indexación, lo que es más chico que el árbol y más rápido de consultar.
+Guardar el árbol paga solo cuando **no puedes enumerar las consultas de antemano** — una
+referencia fija contra nubes que van llegando, o una colección comparada de a pares.
+
+## Rendimiento y complejidad
+
+Con `n = |A|`, `m = |B|`, `d` la dimensión doblante y `Δ` la dispersión (razón entre la distancia
+máxima y la mínima entre pares):
+
+| Pieza | Complejidad | Exponente medido |
+|---|---|---:|
+| `greedy_tree` (construcción, ×2) | `2^O(d) · n log Δ` | `n^1.31` |
+| consulta, `ε > 0` | `(2 + 1/ε)^O(d) · n log n + O(log Δ)` | `n^1.05` (ε=0.5), `n^1.00` (ε=1) |
+| consulta, `ε = 0` | sin cota — ver abajo | `n^1.27` |
+| `hausdorff_naive` | `Θ(n · m · d)` | `n^2.00` |
+
+Los exponentes son la pendiente log-log medida entre 250 y 2000 puntos, en 2D. El `n^2.00` de la
+fuerza bruta y el `n^1.00` de la consulta con `ε = 1` son casi exactos.
+
+**Obtener el percentil no cuesta nada extra.** Es el punto central del artículo: calcular
+`d_h(A, B)` y calcular las `n + 1` distancias parciales es el mismo recorrido. Si acaso, es al
+revés — el corte temprano hace que los percentiles altos salgan más baratos.
+
+### Está pensado para 2 o 3 dimensiones
+
+El factor `(2 + 1/ε)^O(d)` es **exponencial en la dimensión**. Funciona en cualquier dimensión y
+las respuestas siguen siendo correctas, pero se degrada rápido. Con `n = m = 700`, percentil 100,
+`ε = 0.5`:
+
+| dim | árbol | consulta | total | naive | |
+|---:|---:|---:|---:|---:|:---|
+| 2 | 0.68 | 0.36 | 1.03 | 0.74 | |
+| 3 | 1.73 | 2.81 | 4.54 | 0.83 | naive 5.4× |
+| 5 | 10.39 | 32.59 | 42.99 | 1.02 | naive 42× |
+| 8 | 54.68 | 129.80 | 184.48 | 1.30 | naive 141× |
+| 12 | — | — | no terminó en 200 s | 1.6 | |
+
+La fuerza bruta apenas se mueve (`Θ(n·m·d)`, lineal en `d`): de 0.74 s a 1.30 s. El algoritmo del
+árbol se multiplica por 179 entre `d = 2` y `d = 8`, unas 2.4× por dimensión. **Desde `d = 3` en
+adelante, la fuerza bruta conviene.**
+
+### En 2D, desde cuándo conviene
+
+Percentil 100 con `ε = 0.5`, `n = m`:
+
+| n=m | árbol | consulta | total | naive | |
+|---:|---:|---:|---:|---:|:---|
+| 1000 | 1.04 | 0.48 | 1.52 | 1.55 | empate |
+| 2000 | 2.80 | 0.95 | 3.75 | 6.16 | **1.6×** |
+| 3000 | 4.99 | 1.43 | 6.43 | 13.95 | **2.2×** |
+| 4000 | 7.08 | 1.72 | 8.80 | 25.17 | **2.9×** |
+
+El cruce está alrededor de los **1000 puntos**, y la brecha crece como `n^0.74`. El percentil que
+pidas lo mueve: pedir el 100 corta el recorrido mucho antes que pedir el 50, así que con
+percentiles bajos el cruce se corre a la derecha.
+
+Nota que **la construcción del árbol domina**, no el algoritmo: 7.08 s contra 1.72 s en
+`n = 4000`. El cuello de botella está en `greedy_tree`, que es de la dependencia.
+
+### Tres advertencias
+
+- **`ε = 0` no tiene la cota, y es el valor por omisión.** La constante de terminación es
+  `c = ε/(3+ε)`, así que con `ε = 0` da `c = 0` y la condición `r ≤ c·l(x)` no se dispara nunca:
+  el recorrido baja hasta las hojas y el factor `(2 + 1/ε)^O(d)` diverge. Medido da `n^1.27` —
+  mejor que cuadrático, pero no lineal y sin garantía teórica. El régimen lineal empieza recién
+  con `ε > 0`.
+- **`Δ` es propiedad de los datos, no de `n`.** No rompe la asintótica —`n log Δ` sigue siendo
+  esencialmente lineal— pero infla la constante. Puntos casi repetidos, a `1e-9` uno del otro,
+  llevan `log₂Δ` de ~11 a ~30 y corren el cruce hacia la derecha.
+- **`--modo ambos`, que es el de omisión, cuesta `Θ(n·m)`**: la fuerza bruta domina todo lo demás.
+  Sirve para contrastar, no para producción.
+
 ## Los archivos
 
 | Archivo | Qué hay |
@@ -131,12 +232,34 @@ Dos cosas que conviene saber:
 | `generar_datos.py` | el generador de datos de prueba |
 | `tests/` | `python3 -m pytest tests/ -q` desde la raíz |
 
-`buckets.py` está aparte a propósito. Es la variante que alcanza el tiempo de ejecución que
-afirma el artículo, y da valores dentro de la misma garantía, pero **ni siquiera es reproducible
-entre corridas**: el orden dentro de un bucket sale del hash de los objetos, o sea de las
-direcciones de memoria. Eso es deliberado —no distinguir dos nodos cuyas cotas difieren en menos
-de un factor β es justamente lo que compra el `O(1)`—, pero significa que no hay que compararla
-por igualdad exacta, sino contra las cotas.
+### Por qué `buckets.py` está fuera del camino
+
+La Sección 5.2 reemplaza el max-heap exacto de cotas inferiores por cajones geométricos de razón
+`β = 1 + ε/2`: como ya estamos aproximando, dos nodos cuyas cotas difieren en menos de un factor
+`β` no hace falta distinguirlos, y las operaciones bajan de `O(log n)` a `O(1)`.
+
+En la práctica es **más lenta**, entre 1.2× y 2.7×, y la brecha no se cierra al crecer `n`.
+Contando operaciones con `n = m = 2000` y `ε = 1`:
+
+| | `dist()` | ops de cola | |
+|---|---:|---:|:---|
+| heap exacto | 383.747 | 6.557 | 1 op cada 59 distancias |
+| buckets | 628.295 | 12.817 | 1 op cada 49 distancias |
+
+Las operaciones de cola son el **1.7% del trabajo**, así que no hay nada que ganar ahí; y los
+buckets hacen un 65% más de cómputo de distancias, porque su test de terminación es más grueso
+(el umbral es un nivel de cajón, hasta un factor `β` más conservador que `r ≤ c·l(x)`, así que
+los nodos sobreviven más y se siguen dividiendo). De hecho hacen *más* operaciones de cola, no
+menos.
+
+Es estructural: cada operación de cola viene precedida de un `lower_bound(node)`, que es un `min`
+sobre toda la vecindad del nodo, así que la razón cola:distancias queda fija en `1 : 2^O(d)` para
+cualquier `n`. En dimensión baja ese denominador es grande. El resultado del artículo es correcto
+en su modelo de costos; simplemente no es el modelo de costos de esta implementación.
+
+Súmale que **no es reproducible entre corridas**: el orden dentro de un cajón sale del hash de los
+objetos, o sea de las direcciones de memoria. Eso es deliberado y es justamente lo que compra el
+`O(1)`, pero significa que no hay que compararla por igualdad exacta, sino contra las cotas.
 
 ## Licencia
 
