@@ -1,0 +1,7 @@
+# El pin es a un *fork* de donsheehy/greedypermutation, y tiene que serlo:
+# upstream no incluye __init__.py en greedypermutation/dualtrees/, así que
+# setuptools se saltea el subpaquete y ningún build suyo lo trae -- ni el de
+# PyPI ni `pip install git+...`.  El fork solo agrega ese archivo.
+greedypermutation @ git+https://github.com/ManuelKastE/greedypermutation.git@793a33f3ce3716989d9a9496429dc6a71fca8565
+ds2>=0.2.4
+metricspaces>=0.4.0
